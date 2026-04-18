@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reflow — Alerts & Activity</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body { background: var(--bg); }
+
+    .dash-layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+
+    /* ─── SIDEBAR (reused from dashboard) ─── */
+    .sidebar {
+      background: var(--surface); border-right: 1px solid var(--border);
+      padding: 24px 0; position: fixed; top: 0; left: 0; bottom: 0; width: 220px;
+      display: flex; flex-direction: column; z-index: 10;
+    }
+    .sidebar-logo { padding: 0 20px 24px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+    .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 0 10px; }
+    .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 14px; color: var(--text-muted); cursor: pointer; transition: all 0.15s; text-decoration: none; }
+    .sidebar-item:hover { background: var(--surface-2); color: var(--text); }
+    .sidebar-item.active { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
+    .sidebar-section-label { padding: 16px 24px 6px; font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; }
+    .sidebar-bottom { padding: 16px 10px 0; border-top: 1px solid var(--border); margin-top: auto; }
+    .sidebar-company { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: var(--radius-sm); }
+    .company-avatar { width: 32px; height: 32px; border-radius: 8px; background: var(--accent-dim); border: 1px solid var(--accent-border); display: flex; align-items: center; justify-content: center; font-family: var(--font-head); font-size: 12px; font-weight: 700; color: var(--accent); }
+    .company-name { font-size: 13px; font-weight: 500; line-height: 1; margin-bottom: 2px; }
+    .company-mrr { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+
+    /* ─── MAIN ─── */
+    .dash-main { margin-left: 220px; padding: 32px 36px; min-height: 100vh; }
+
+    .dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; }
+    .dash-title { font-family: var(--font-head); font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+    .dash-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ─── FILTER TABS ─── */
+    .filter-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px; gap: 16px; flex-wrap: wrap;
+    }
+
+    .filter-tabs { display: flex; gap: 4px; }
+    .filter-tab {
+      padding: 7px 16px; border-radius: 100px; font-size: 13px;
+      cursor: pointer; border: none; background: none; font-family: var(--font-body);
+      color: var(--text-muted); transition: all 0.15s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .filter-tab.active { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
+    .filter-tab:hover:not(.active) { background: var(--surface); color: var(--text); }
+
+    .tab-count {
+      background: var(--surface-2); border-radius: 100px;
+      padding: 1px 7px; font-family: var(--font-mono); font-size: 11px;
+    }
+    .filter-tab.active .tab-count { background: var(--accent); color: #000; }
+
+    .mark-all-btn {
+      font-size: 13px; color: var(--text-muted); background: none; border: none;
+      cursor: pointer; font-family: var(--font-body); transition: color 0.2s;
+    }
+    .mark-all-btn:hover { color: var(--accent); }
+
+    /* ─── ALERT GROUPS ─── */
+    .alert-group { margin-bottom: 28px; }
+
+    .group-label {
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase;
+      margin-bottom: 10px; padding: 0 4px;
+    }
+
+    .alert-list { display: flex; flex-direction: column; gap: 8px; }
+
+    /* ─── SINGLE ALERT ─── */
+    .alert-item {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 16px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer; transition: all 0.15s;
+      position: relative;
+    }
+    .alert-item:hover { border-color: var(--accent-border); background: var(--surface-2); }
+    .alert-item.unread { border-left: 3px solid var(--accent); }
+    .alert-item.unread-red { border-left: 3px solid var(--red); }
+    .alert-item.unread-yellow { border-left: 3px solid var(--yellow); }
+
+    .alert-dot-wrap { flex-shrink: 0; padding-top: 2px; }
+    .alert-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot-green { background: var(--accent); box-shadow: 0 0 6px var(--accent-glow); }
+    .dot-red { background: var(--red); }
+    .dot-yellow { background: var(--yellow); }
+    .dot-muted { background: var(--text-dim); }
+
+    .alert-icon {
+      width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .icon-green { background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); }
+    .icon-red { background: var(--red-dim); border: 1px solid rgba(255,77,94,0.2); color: var(--red); }
+    .icon-yellow { background: var(--yellow-dim); border: 1px solid rgba(255,184,0,0.2); color: var(--yellow); }
+    .icon-muted { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim); }
+
+    .alert-body { flex: 1; min-width: 0; }
+
+    .alert-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+    .alert-title { font-size: 14px; font-weight: 500; line-height: 1.3; }
+    .alert-time { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
+
+    .alert-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px; }
+
+    .alert-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+    .alert-action-btn {
+      padding: 5px 12px; border-radius: var(--radius-sm);
+      font-size: 12px; font-family: var(--font-mono);
+      cursor: pointer; border: none; transition: all 0.15s;
+    }
+    .action-primary { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
+    .action-primary:hover { background: var(--accent); color: #000; }
+    .action-ghost { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); }
+    .action-ghost:hover { background: var(--surface-3); color: var(--text); }
+
+    /* ─── EMPTY STATE ─── */
+    .empty-state {
+      text-align: center; padding: 60px 20px;
+      display: none;
+    }
+    .empty-icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-title { font-family: var(--font-head); font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .empty-sub { color: var(--text-muted); font-size: 14px; }
+
+    /* ─── DETAIL PANEL (slide-in) ─── */
+    .detail-panel {
+      position: fixed; top: 0; right: 0; bottom: 0;
+      width: 400px; z-index: 200;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.25,0.46,0.45,0.94);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .detail-panel.open { transform: none; box-shadow: -24px 0 60px rgba(0,0,0,0.4); }
+
+    .panel-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .panel-title { font-family: var(--font-head); font-size: 16px; font-weight: 700; }
+    .panel-close {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--surface-2); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--text-muted); font-size: 16px;
+      transition: all 0.15s;
+    }
+    .panel-close:hover { background: var(--surface-3); color: var(--text); }
+
+    .panel-body { flex: 1; overflow-y: auto; padding: 24px; }
+
+    .panel-section { margin-bottom: 24px; }
+    .panel-section-title {
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .detail-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-light);
+      font-size: 13px;
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-key { color: var(--text-muted); }
+    .detail-val { font-family: var(--font-mono); font-weight: 500; }
+
+    .timeline { display: flex; flex-direction: column; gap: 0; }
+    .tl-item { display: flex; gap: 12px; position: relative; padding-bottom: 16px; }
+    .tl-item:last-child { padding-bottom: 0; }
+    .tl-item:not(:last-child) .tl-line {
+      position: absolute; left: 7px; top: 16px; bottom: 0; width: 1px;
+      background: var(--border);
+    }
+    .tl-dot { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; margin-top: 2px; border: 2px solid; }
+    .tl-dot-green { background: var(--accent-dim); border-color: var(--accent); }
+    .tl-dot-red { background: var(--red-dim); border-color: var(--red); }
+    .tl-dot-yellow { background: var(--yellow-dim); border-color: var(--yellow); }
+    .tl-dot-muted { background: var(--surface-2); border-color: var(--text-dim); }
+    .tl-content { flex: 1; }
+    .tl-label { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+    .tl-time { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+
+    .panel-actions { padding: 20px 24px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+
+    .panel-overlay {
+      position: fixed; inset: 0; z-index: 150;
+      background: rgba(6,12,20,0.6);
+      backdrop-filter: blur(2px);
+      display: none;
+    }
+    .panel-overlay.open { display: block; }
+
+    @media (max-width: 1000px) {
+      .dash-layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .dash-main { margin-left: 0; padding: 80px 20px 20px; }
+      .detail-panel { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="dash-layout">
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <a href="index.html" class="logo" style="font-size:18px;"><span class="logo-dot"></span>Reflow</a>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="sidebar-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Overview
+        </a>
+        <a href="#" class="sidebar-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.57-5.95"/></svg>
+          Retries
+        </a>
+        <a href="#" class="sidebar-item active">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          Alerts
+          <span style="margin-left:auto; background:var(--accent); color:#000; font-family:var(--font-mono); font-size:10px; font-weight:700; padding:2px 7px; border-radius:100px;">7</span>
+        </a>
+        <div class="sidebar-section-label">Analytics</div>
+        <a href="#" class="sidebar-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Revenue
+        </a>
+        <a href="#" class="sidebar-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          Customers
+        </a>
+        <div class="sidebar-section-label">Settings</div>
+        <a href="onboarding.html" class="sidebar-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+          Integrations
+        </a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="sidebar-company">
+          <div class="company-avatar">SF</div>
+          <div>
+            <div class="company-name">Stackflow Inc.</div>
+            <div class="company-mrr">$28,400 MRR</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="dash-main">
+      <div class="dash-header">
+        <div>
+          <div class="dash-title">Alerts & Activity</div>
+          <div class="dash-subtitle">7 unread · last updated just now</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <button class="mark-all-btn" onclick="markAllRead()">Mark all as read</button>
+          <a href="dashboard.html" class="btn btn-secondary" style="padding:8px 16px;font-size:13px;">← Dashboard</a>
+        </div>
+      </div>
+
+      <!-- FILTER TABS -->
+      <div class="filter-bar">
+        <div class="filter-tabs">
+          <button class="filter-tab active" onclick="filterAlerts('all', this)">All <span class="tab-count">12</span></button>
+          <button class="filter-tab" onclick="filterAlerts('recovered', this)">Recovered <span class="tab-count">5</span></button>
+          <button class="filter-tab" onclick="filterAlerts('failed', this)">Failed <span class="tab-count">3</span></button>
+          <button class="filter-tab" onclick="filterAlerts('retrying', this)">Retrying <span class="tab-count">4</span></button>
+        </div>
+      </div>
+
+      <!-- TODAY -->
+      <div class="alert-group" id="group-today">
+        <div class="group-label">Today</div>
+        <div class="alert-list">
+
+          <div class="alert-item unread" data-type="recovered" onclick="openPanel('rohan')">
+            <div class="alert-dot-wrap"><div class="alert-dot dot-green"></div></div>
+            <div class="alert-icon icon-green">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.57-5.95"/></svg>
+            </div>
+            <div class="alert-body">
+              <div class="alert-header">
+                <div class="alert-title">Payment recovered — Rohan K. · $299</div>
+                <div class="alert-time">2m ago</div>
+              </div>
+              <div class="alert-desc">Retry #2 succeeded after insufficient funds failure. Revenue secured. Customer was not notified (silent recovery).</div>
+              <div class="alert-meta">
+                <span class="tag tag-green">recovered</span>
+                <span class="tag tag-muted">Pro plan</span>
+                <button class="alert-action-btn action-ghost">View details</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert-item unread-red" data-type="failed" onclick="openPanel('james')">
+            <div class="alert-dot-wrap"><div class="alert-dot dot-red"></div></div>
+            <div class="alert-icon icon-red">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            </div>
+            <div class="alert-body">
+              <div class="alert-header">
+                <div class="alert-title">⚠ Manual review needed — James L. · $299</div>
+                <div class="alert-time">47m ago</div>
+              </div>
+              <div class="alert-desc">4 retries exhausted. Failure code: do_not_honor. This requires direct customer contact — automated recovery is not possible.</div>
+              <div class="alert-meta">
+                <span class="tag tag-red">manual review</span>
+                <span class="tag tag-muted">Pro plan</span>
+                <button class="alert-action-btn action-primary">Contact customer</button>
+                <button class="alert-action-btn action-ghost">Dismiss</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert-item unread-yellow" data-type="retrying" onclick="openPanel('sofia')">
+            <div class="alert-dot-wrap"><div class="alert-dot dot-yellow"></div></div>
+            <div class="alert-icon icon-yellow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div class="alert-body">
+              <div class="alert-header">
+                <div class="alert-title">Retry scheduled — Sofia C. · $149</div>
+                <div class="alert-time">1h ago</div>
+              </div>
+              <div class="alert-desc">Expired card detected. Update nudge sent via email. Retry #1 queued for 9:00 AM tomorrow — customer's typical payment window.</div>
+              <div class="alert-meta">
+                <span class="tag tag-yellow">retrying</span>
+                <span class="tag tag-muted">Growth plan</span>
+                <button class="alert-action-btn action-ghost">View retry queue</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert-item unread" data-type="recovered" onclick="openPanel('arjun')">
+            <div class="alert-dot-wrap"><div class="alert-dot dot-green"></div></div>
+            <div class="alert-icon icon-green">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.57-5.95"/></svg>
+            </div>
+            <div class="alert-body">
+              <div class="alert-header">
+                <div class="alert-title">Payment recovered — Arjun M. · $299</div>
+                <div class="alert-time">3h ago</div>
+              </div>
+              <div class="alert-desc">Retry #3 succeeded. Bank decline resolved — card re-authorised on third attempt at 7:20 AM.</div>
+              <div class="alert-meta">
+                <span class="tag tag-green">recovered</span>
+                <span class="tag tag-muted">Pro plan</span>
+                <button class="alert-action-btn action-ghost">View details</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- YESTERDAY -->
+      <div class="alert-group" id="group-yesterday">
+        <div class="group-label">Yesterday</div>
+        <div class="alert-list">
+
+          <div class="alert-item" data-type="recovered">
+            <div class="alert-dot-wrap"><div class="alert-dot dot-muted"></div></div>
+            <div class="alert-icon icon-muted">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.57-5.95"/></svg>
+            </div>
+            <div class="alert-body">
+              <div class="alert-header">
+                <div class="alert-title">Payment recovered — Emma W. · $149</div>
+                <div class="alert-time">14h ago</div>
+              </div>
+              <div class="alert-desc">Expired card — customer updated payment method via email link. Retry succeeded immediately after update.</div>
+              <div class="alert-meta">
+                <span class="tag tag-green">recovered</span>
+                <span class="tag tag-muted">Growth plan</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert-item" data-type="recovered">
+            <div class="alert-dot-wrap"><div class="alert-dot dot-muted"></div></div>
+            <div class="alert-icon icon-muted">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.57-5.95"/></svg>
+            </div>
+            <div class="alert-body">
+              <div class="alert-header">
+                <div class="alert-title">Payment recovered — Carlos R. · $299</div>
+                <div class="alert-time">18h ago</div>
+              </div>
+              <div class="alert-desc">Insufficient funds — retry succeeded at 8:45 AM (payday window). No customer contact needed.</div>
+              <div class="alert-meta">
+                <span class="tag tag-green">recovered</span>
+                <span class="tag tag-muted">Pro plan</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert-item" data-type="retrying">
+            <div class="alert-dot-wrap"><div class="alert-dot dot-muted"></div></div>
+            <div class="alert-icon icon-yellow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div class="alert-body">
+              <div class="alert-header">
+                <div class="alert-title">Retry scheduled — Priya S. · $79</div>
+                <div class="alert-time">20h ago</div>
+              </div>
+              <div class="alert-desc">Insufficient funds. Retry #1 queued. Email nudge sent. Next attempt: tomorrow at 10:00 AM.</div>
+              <div class="alert-meta">
+                <span class="tag tag-yellow">retrying</span>
+                <span class="tag tag-muted">Starter plan</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 2 DAYS AGO -->
+      <div class="alert-group" id="group-older">
+        <div class="group-label">Earlier this week</div>
+        <div class="alert-list">
+          <div class="alert-item" data-type="failed">
+            <div class="alert-dot-wrap"><div class="alert-dot dot-muted"></div></div>
+            <div class="alert-icon icon-red">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <div class="alert-body">
+              <div class="alert-header">
+                <div class="alert-title">Reflow commission invoice — December</div>
+                <div class="alert-time">2d ago</div>
+              </div>
+              <div class="alert-desc">Monthly invoice generated. $3,840 recovered × 15% = $576.00 due. Auto-charged on Jan 1.</div>
+              <div class="alert-meta">
+                <span class="tag tag-muted">billing</span>
+                <button class="alert-action-btn action-ghost">View invoice</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- DETAIL PANEL OVERLAY -->
+  <div class="panel-overlay" id="panel-overlay" onclick="closePanel()"></div>
+
+  <!-- DETAIL PANEL -->
+  <div class="detail-panel" id="detail-panel">
+    <div class="panel-header">
+      <div class="panel-title" id="panel-title">Payment Details</div>
+      <div class="panel-close" onclick="closePanel()">✕</div>
+    </div>
+    <div class="panel-body" id="panel-body">
+      <!-- Filled dynamically -->
+    </div>
+    <div class="panel-actions" id="panel-actions"></div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    const panelData = {
+      rohan: {
+        title: 'Rohan K. — $299 Recovered',
+        details: [
+          { key: 'Customer', val: 'Rohan K.' },
+          { key: 'Plan', val: 'Pro · $299/mo' },
+          { key: 'Failure type', val: 'Insufficient funds' },
+          { key: 'Original failure', val: 'Dec 28 · 2:14 AM' },
+          { key: 'Retries attempted', val: '2' },
+          { key: 'Recovered on', val: 'Dec 28 · 9:07 AM' },
+          { key: 'Recovery time', val: '6h 53m' },
+          { key: 'Commission (15%)', val: '$44.85' },
+        ],
+        timeline: [
+          { label: 'Payment failed', sub: 'Insufficient funds · 2:14 AM', type: 'red' },
+          { label: 'Failure classified', sub: 'Payday window retry queued · 2:15 AM', type: 'muted' },
+          { label: 'Retry #1 failed', sub: 'Still insufficient · 6:00 AM', type: 'yellow' },
+          { label: 'Retry #2 succeeded', sub: 'Payment confirmed · 9:07 AM', type: 'green' },
+        ],
+        actions: [
+          { label: 'View payment', style: 'action-ghost' },
+          { label: 'Email customer receipt', style: 'action-primary' },
+        ]
+      },
+      james: {
+        title: 'James L. — $299 · Manual Review',
+        details: [
+          { key: 'Customer', val: 'James L.' },
+          { key: 'Plan', val: 'Pro · $299/mo' },
+          { key: 'Failure type', val: 'Do not honor' },
+          { key: 'Original failure', val: 'Today · 11:30 AM' },
+          { key: 'Retries attempted', val: '4 (max)' },
+          { key: 'Status', val: '⚠ Unresolved' },
+          { key: 'Next step', val: 'Manual contact required' },
+        ],
+        timeline: [
+          { label: 'Payment failed', sub: 'Do not honor · 11:30 AM', type: 'red' },
+          { label: 'Retry #1, #2, #3 failed', sub: 'Same code · 11:35 AM–2:00 PM', type: 'red' },
+          { label: 'Retry #4 failed', sub: 'Max retries reached · 4:00 PM', type: 'red' },
+          { label: 'Alert escalated', sub: 'Manual review required · 4:01 PM', type: 'yellow' },
+        ],
+        actions: [
+          { label: 'Draft customer email', style: 'action-primary' },
+          { label: 'Mark resolved', style: 'action-ghost' },
+        ]
+      },
+      sofia: {
+        title: 'Sofia C. — $149 · Retry Pending',
+        details: [
+          { key: 'Customer', val: 'Sofia C.' },
+          { key: 'Plan', val: 'Growth · $149/mo' },
+          { key: 'Failure type', val: 'Expired card' },
+          { key: 'Original failure', val: 'Today · 8:00 AM' },
+          { key: 'Email nudge sent', val: 'Today · 8:02 AM' },
+          { key: 'Next retry', val: 'Tomorrow · 9:00 AM' },
+          { key: 'Status', val: 'Awaiting card update' },
+        ],
+        timeline: [
+          { label: 'Payment failed', sub: 'Expired card · 8:00 AM', type: 'red' },
+          { label: 'Card update email sent', sub: '"Update your card" · 8:02 AM', type: 'yellow' },
+          { label: 'Retry scheduled', sub: 'Tomorrow 9:00 AM · optimal window', type: 'muted' },
+        ],
+        actions: [
+          { label: 'Send SMS nudge', style: 'action-primary' },
+          { label: 'Skip retry', style: 'action-ghost' },
+        ]
+      },
+      arjun: {
+        title: 'Arjun M. — $299 Recovered',
+        details: [
+          { key: 'Customer', val: 'Arjun M.' },
+          { key: 'Plan', val: 'Pro · $299/mo' },
+          { key: 'Failure type', val: 'Bank decline' },
+          { key: 'Original failure', val: 'Today · 12:00 AM' },
+          { key: 'Retries attempted', val: '3' },
+          { key: 'Recovered on', val: 'Today · 7:20 AM' },
+          { key: 'Recovery time', val: '7h 20m' },
+          { key: 'Commission (15%)', val: '$44.85' },
+        ],
+        timeline: [
+          { label: 'Payment failed', sub: 'Bank decline · 12:00 AM', type: 'red' },
+          { label: 'Retry #1 failed', sub: '3:00 AM', type: 'red' },
+          { label: 'Retry #2 failed', sub: '5:00 AM', type: 'yellow' },
+          { label: 'Retry #3 succeeded', sub: '7:20 AM', type: 'green' },
+        ],
+        actions: [
+          { label: 'View payment', style: 'action-ghost' },
+        ]
+      }
+    };
+
+    function openPanel(key) {
+      const data = panelData[key];
+      if (!data) return;
+
+      document.getElementById('panel-title').textContent = data.title;
+      document.getElementById('panel-body').innerHTML = `
+        <div class="panel-section">
+          <div class="panel-section-title">Payment info</div>
+          ${data.details.map(d => `
+            <div class="detail-row">
+              <span class="detail-key">${d.key}</span>
+              <span class="detail-val">${d.val}</span>
+            </div>
+          `).join('')}
+        </div>
+        <div class="panel-section">
+          <div class="panel-section-title">Recovery timeline</div>
+          <div class="timeline">
+            ${data.timeline.map(t => `
+              <div class="tl-item">
+                <div class="tl-line"></div>
+                <div class="tl-dot tl-dot-${t.type}"></div>
+                <div class="tl-content">
+                  <div class="tl-label">${t.label}</div>
+                  <div class="tl-time">${t.sub}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+
+      document.getElementById('panel-actions').innerHTML = data.actions.map(a =>
+        `<button class="alert-action-btn ${a.style}" style="padding:9px 16px; font-size:13px;">${a.label}</button>`
+      ).join('');
+
+      document.getElementById('detail-panel').classList.add('open');
+      document.getElementById('panel-overlay').classList.add('open');
+    }
+
+    function closePanel() {
+      document.getElementById('detail-panel').classList.remove('open');
+      document.getElementById('panel-overlay').classList.remove('open');
+    }
+
+    function filterAlerts(type, tabEl) {
+      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+      tabEl.classList.add('active');
+
+      document.querySelectorAll('.alert-item').forEach(item => {
+        const itemType = item.dataset.type;
+        item.style.display = (type === 'all' || itemType === type) ? 'flex' : 'none';
+      });
+    }
+
+    function markAllRead() {
+      document.querySelectorAll('.alert-item').forEach(item => {
+        item.classList.remove('unread', 'unread-red', 'unread-yellow');
+      });
+      document.querySelectorAll('.alert-dot').forEach(d => d.classList.replace('dot-green','dot-muted') || d.classList.replace('dot-red','dot-muted') || d.classList.replace('dot-yellow','dot-muted'));
+    }
+  </script>
+</body>
+</html>

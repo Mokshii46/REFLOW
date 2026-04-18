@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reflow — Get Started</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body { background: var(--bg); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ─── PROGRESS HEADER ─── */
+    .onboard-header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: 64px; display: flex; align-items: center; justify-content: space-between;
+      padding: 0 40px;
+      background: rgba(6,12,20,0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .progress-steps {
+      display: flex; align-items: center; gap: 0;
+    }
+
+    .prog-step {
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--font-mono); font-size: 12px;
+      color: var(--text-dim);
+      transition: color 0.3s;
+    }
+    .prog-step.active { color: var(--accent); }
+    .prog-step.done { color: var(--text-muted); }
+
+    .prog-num {
+      width: 24px; height: 24px; border-radius: 50%;
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600;
+      transition: all 0.3s;
+    }
+    .prog-step.active .prog-num { background: var(--accent); border-color: var(--accent); color: #000; }
+    .prog-step.done .prog-num { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+
+    .prog-connector {
+      width: 40px; height: 1px;
+      background: var(--border);
+      margin: 0 8px;
+      position: relative;
+    }
+    .prog-connector.done::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: var(--accent);
+      transform-origin: left;
+      animation: connectorFill 0.4s ease forwards;
+    }
+    @keyframes connectorFill { from { scaleX: 0; } to { scaleX: 1; } }
+
+    .skip-link {
+      font-size: 13px; color: var(--text-muted);
+      text-decoration: none; transition: color 0.2s;
+    }
+    .skip-link:hover { color: var(--text); }
+
+    /* ─── MAIN ─── */
+    .onboard-main {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      padding: 100px 40px 60px;
+    }
+
+    .onboard-card {
+      width: 100%; max-width: 580px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    /* ─── STEPS ─── */
+    .step { display: none; }
+    .step.active { display: block; animation: stepIn 0.35s ease both; }
+    @keyframes stepIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: none; } }
+
+    /* STEP 1 — Connect Payment Processor */
+    .step-hero {
+      padding: 40px 40px 32px;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .step-icon-wrap {
+      width: 64px; height: 64px; border-radius: 16px;
+      background: var(--accent-dim); border: 1px solid var(--accent-border);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent); margin: 0 auto 20px;
+    }
+
+    .step-num-label {
+      font-family: var(--font-mono); font-size: 11px;
+      color: var(--text-dim); letter-spacing: 0.1em;
+      text-transform: uppercase; margin-bottom: 10px;
+    }
+
+    .step-title {
+      font-family: var(--font-head); font-size: 28px; font-weight: 700;
+      letter-spacing: -1px; margin-bottom: 12px;
+    }
+
+    .step-sub { font-size: 15px; color: var(--text-muted); line-height: 1.6; max-width: 400px; margin: 0 auto; }
+
+    .step-body { padding: 32px 40px; }
+
+    /* Connect button */
+    .connect-btn {
+      width: 100%; display: flex; align-items: center; justify-content: center; gap: 12px;
+      padding: 16px 24px;
+      
+      border: none; border-radius: var(--radius-sm);
+      color: #fff; font-size: 15px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+      font-family: var(--font-body);
+    }
+    .connect-btn:hover { background: #00c964; transform: translateY(-1px); box-shadow: 0 8px 24px var(--accent-glow); }
+
+    .connect-btn.connected {
+      background: var(--accent-dim); border: 1px solid var(--accent-border);
+      color: var(--accent);
+    }
+
+    .divider { display: flex; align-items: center; gap: 16px; margin: 20px 0; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .divider span { font-size: 12px; color: var(--text-dim); font-family: var(--font-mono); }
+
+    .manual-input-wrap { display: flex; flex-direction: column; gap: 12px; }
+
+    .input-group { display: flex; flex-direction: column; gap: 6px; }
+    .input-label { font-size: 13px; color: var(--text-muted); }
+
+    .styled-input {
+      width: 100%; padding: 12px 16px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text);
+      font-family: var(--font-mono); font-size: 13px;
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .styled-input:focus {
+      border-color: var(--accent-border);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+    .styled-input::placeholder { color: var(--text-dim); }
+
+    /* Trust indicators */
+    .trust-row {
+      display: flex; gap: 16px; flex-wrap: wrap;
+      margin-top: 20px; padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+    .trust-chip {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: var(--text-dim); font-family: var(--font-mono);
+    }
+    .trust-chip svg { color: var(--accent); flex-shrink: 0; }
+
+    /* STEP 2 — Configure */
+    .config-grid { display: flex; flex-direction: column; gap: 16px; }
+
+    .config-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      transition: border-color 0.2s;
+    }
+    .config-row:hover { border-color: var(--accent-border); }
+
+    .config-info { display: flex; align-items: center; gap: 12px; }
+    .config-icon {
+      width: 36px; height: 36px; border-radius: 8px;
+      background: var(--accent-dim); border: 1px solid var(--accent-border);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent); flex-shrink: 0;
+    }
+    .config-name { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+    .config-desc { font-size: 12px; color: var(--text-muted); }
+
+    /* Toggle */
+    .toggle {
+      position: relative; width: 44px; height: 24px; flex-shrink: 0;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: var(--surface-3); border-radius: 12px; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle input:checked ~ .toggle-track { background: var(--accent); }
+    .toggle-thumb {
+      position: absolute; top: 3px; left: 3px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #fff; transition: transform 0.2s;
+      pointer-events: none;
+    }
+    .toggle input:checked ~ .toggle-track .toggle-thumb { transform: translateX(20px); }
+
+    /* Retry strategy selector */
+    .strategy-group { display: flex; flex-direction: column; gap: 8px; }
+    .strategy-option {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 14px 16px;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .strategy-option.selected {
+      border-color: var(--accent-border); background: var(--accent-dim);
+    }
+    .strategy-radio {
+      width: 18px; height: 18px; border-radius: 50%;
+      border: 2px solid var(--border); flex-shrink: 0; margin-top: 1px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .strategy-option.selected .strategy-radio {
+      border-color: var(--accent); background: var(--accent);
+    }
+    .strategy-option.selected .strategy-radio::after {
+      content: ''; width: 6px; height: 6px; border-radius: 50%; background: #000;
+    }
+    .strategy-name { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+    .strategy-desc { font-size: 12px; color: var(--text-muted); }
+    .strategy-badge { margin-top: 6px; }
+
+    /* STEP 3 — Notification Setup */
+    .notif-grid { display: flex; flex-direction: column; gap: 12px; }
+
+    .notif-card {
+      padding: 16px 20px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    .notif-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .notif-title { font-size: 14px; font-weight: 500; }
+
+    .notif-input-row { display: flex; gap: 8px; }
+    .notif-input-row .styled-input { flex: 1; }
+
+    /* STEP 4 — Preview */
+    .preview-summary {
+      display: flex; flex-direction: column; gap: 12px;
+    }
+
+    .summary-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 20px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .summary-key { font-size: 13px; color: var(--text-muted); }
+    .summary-val { font-family: var(--font-mono); font-size: 13px; font-weight: 500; }
+    .summary-val.ok { color: var(--accent); }
+
+    .ready-banner {
+      padding: 20px; text-align: center;
+      background: var(--accent-dim); border: 1px solid var(--accent-border);
+      border-radius: var(--radius-sm); margin-top: 4px;
+    }
+    .ready-banner p { font-size: 14px; color: var(--accent); font-weight: 500; }
+    .ready-banner small { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+
+    /* ─── FOOTER NAV ─── */
+    .step-footer {
+      padding: 20px 40px;
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface-2);
+    }
+
+    .btn-back {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 14px; color: var(--text-muted);
+      background: none; border: none; cursor: pointer;
+      font-family: var(--font-body);
+      transition: color 0.2s;
+    }
+    .btn-back:hover { color: var(--text); }
+    .btn-back:disabled { opacity: 0.3; cursor: default; }
+
+    /* ─── SIDE HELPER ─── */
+    .onboard-helper {
+      position: fixed; bottom: 32px; right: 32px;
+      width: 300px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      transition: all 0.3s;
+    }
+
+    .helper-title {
+      font-family: var(--font-mono); font-size: 11px;
+      color: var(--text-dim); letter-spacing: 0.1em;
+      text-transform: uppercase; margin-bottom: 12px;
+    }
+
+    .helper-tips { display: flex; flex-direction: column; gap: 10px; }
+
+    .helper-tip {
+      display: flex; gap: 10px; align-items: flex-start;
+      font-size: 13px; color: var(--text-muted); line-height: 1.4;
+    }
+    .tip-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent); flex-shrink: 0; margin-top: 5px;
+    }
+
+    @media (max-width: 900px) {
+      .onboard-helper { display: none; }
+    }
+    @media (max-width: 600px) {
+      .onboard-header { padding: 0 20px; }
+      .prog-step span.prog-label { display: none; }
+      .onboard-main { padding: 80px 20px 40px; }
+      .step-hero, .step-body, .step-footer { padding-left: 24px; padding-right: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+
+  <!-- PROGRESS HEADER -->
+  <header class="onboard-header">
+    <a href="index.html" class="logo" style="font-size:18px;">
+      <span class="logo-dot"></span>Reflow
+    </a>
+
+    <div class="progress-steps">
+      <div class="prog-step active" id="ps-1">
+        <div class="prog-num">1</div>
+        <span class="prog-label">Connect</span>
+      </div>
+      <div class="prog-connector" id="pc-1"></div>
+      <div class="prog-step" id="ps-2">
+        <div class="prog-num">2</div>
+        <span class="prog-label">Configure</span>
+      </div>
+      <div class="prog-connector" id="pc-2"></div>
+      <div class="prog-step" id="ps-3">
+        <div class="prog-num">3</div>
+        <span class="prog-label">Notifications</span>
+      </div>
+      <div class="prog-connector" id="pc-3"></div>
+      <div class="prog-step" id="ps-4">
+        <div class="prog-num">4</div>
+        <span class="prog-label">Go Live</span>
+      </div>
+    </div>
+
+    <a href="dashboard.html" class="skip-link">Skip setup →</a>
+  </header>
+
+  <!-- MAIN -->
+  <main class="onboard-main">
+    <div class="onboard-card">
+
+      <!-- STEP 1: Connect Payment Processor -->
+      <div class="step active" id="step-1">
+        <div class="step-hero">
+          <div class="step-icon-wrap">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          </div>
+          <div class="step-num-label">Step 1 of 4</div>
+          <div class="step-title">Connect your payment processor</div>
+          <p class="step-sub">Reflow connects via OAuth to your payment processor. Read-only access to payment events. Nothing is stored. Takes 90 seconds.</p>
+        </div>
+        <div class="step-body">
+          <button class="connect-btn" onclick="simulateConnect(this)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            Connect Payment Processor
+          </button>
+
+          <div class="divider"><span>or paste your API key manually</span></div>
+
+          <div class="manual-input-wrap">
+            <div class="input-group">
+              <div class="input-label">Restricted API Key (read + retry permissions)</div>
+              <input type="password" class="styled-input" id="api-key" placeholder="sk_live_••••••••••••••••••••••••" />
+            </div>
+          </div>
+
+          <div class="trust-row">
+            <div class="trust-chip">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              SOC 2 compliant
+            </div>
+            <div class="trust-chip">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              AES-256 encrypted
+            </div>
+            <div class="trust-chip">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Never stores card data
+            </div>
+          </div>
+        </div>
+        <div class="step-footer">
+          <button class="btn-back" disabled>← Back</button>
+          <button class="btn btn-primary" onclick="goStep(2)">
+            Continue →
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 2: Configure Recovery -->
+      <div class="step" id="step-2">
+        <div class="step-hero">
+          <div class="step-icon-wrap">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+          </div>
+          <div class="step-num-label">Step 2 of 4</div>
+          <div class="step-title">Configure recovery settings</div>
+          <p class="step-sub">Choose how Reflow handles failed payments. You can change any of this later from Settings.</p>
+        </div>
+        <div class="step-body">
+          <!-- Recovery strategy -->
+          <div style="margin-bottom:24px;">
+            <div style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">Recovery strategy</div>
+            <div class="strategy-group">
+              <div class="strategy-option selected" onclick="selectStrategy(this)">
+                <div class="strategy-radio"></div>
+                <div>
+                  <div class="strategy-name">Smart (Recommended)</div>
+                  <div class="strategy-desc">Reflow classifies each failure and picks the best retry window and channel automatically.</div>
+                  <div class="strategy-badge"><span class="tag tag-green" style="font-size:10px;">73% avg recovery rate</span></div>
+                </div>
+              </div>
+              <div class="strategy-option" onclick="selectStrategy(this)">
+                <div class="strategy-radio"></div>
+                <div>
+                  <div class="strategy-name">Conservative</div>
+                  <div class="strategy-desc">Fewer retries, longer windows. Best for high-ticket B2B where customer relationships matter more.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Feature toggles -->
+          <div style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">Enable recovery channels</div>
+          <div class="config-grid">
+            <div class="config-row">
+              <div class="config-info">
+                <div class="config-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                </div>
+                <div>
+                  <div class="config-name">Email Recovery Sequences</div>
+                  <div class="config-desc">Personalised nudge emails at optimal times</div>
+                </div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" checked />
+                <div class="toggle-track"><div class="toggle-thumb"></div></div>
+              </label>
+            </div>
+            <div class="config-row">
+              <div class="config-info">
+                <div class="config-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </div>
+                <div>
+                  <div class="config-name">SMS Nudges</div>
+                  <div class="config-desc">Text reminders for high-value failed payments</div>
+                </div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" />
+                <div class="toggle-track"><div class="toggle-thumb"></div></div>
+              </label>
+            </div>
+            <div class="config-row">
+              <div class="config-info">
+                <div class="config-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.57-5.95"/></svg>
+                </div>
+                <div>
+                  <div class="config-name">Smart Retry</div>
+                  <div class="config-desc">Auto-retry at behaviour-based optimal windows</div>
+                </div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" checked />
+                <div class="toggle-track"><div class="toggle-thumb"></div></div>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="step-footer">
+          <button class="btn-back" onclick="goStep(1)">← Back</button>
+          <button class="btn btn-primary" onclick="goStep(3)">Continue →</button>
+        </div>
+      </div>
+
+      <!-- STEP 3: Notifications -->
+      <div class="step" id="step-3">
+        <div class="step-hero">
+          <div class="step-icon-wrap">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          </div>
+          <div class="step-num-label">Step 3 of 4</div>
+          <div class="step-title">Where should we alert you?</div>
+          <p class="step-sub">Get notified when payments fail, retries succeed, or a customer needs manual attention.</p>
+        </div>
+        <div class="step-body">
+          <div class="notif-grid">
+            <div class="notif-card">
+              <div class="notif-header">
+                <div class="notif-title">
+                  <span style="display:inline-flex;align-items:center;gap:8px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    Email alerts
+                  </span>
+                </div>
+                <label class="toggle">
+                  <input type="checkbox" checked />
+                  <div class="toggle-track"><div class="toggle-thumb"></div></div>
+                </label>
+              </div>
+              <div class="input-group">
+                <input type="email" class="styled-input" placeholder="you@company.com" value="" />
+              </div>
+            </div>
+
+            <div class="notif-card">
+              <div class="notif-header">
+                <div class="notif-title">
+                  <span style="display:inline-flex;align-items:center;gap:8px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Slack notifications
+                  </span>
+                </div>
+                <label class="toggle">
+                  <input type="checkbox" />
+                  <div class="toggle-track"><div class="toggle-thumb"></div></div>
+                </label>
+              </div>
+              <div class="input-group">
+                <input type="text" class="styled-input" placeholder="https://hooks.slack.com/services/..." />
+              </div>
+            </div>
+
+            <div class="notif-card">
+              <div class="notif-header">
+                <div class="notif-title">
+                  <span style="display:inline-flex;align-items:center;gap:8px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                    Weekly summary report
+                  </span>
+                </div>
+                <label class="toggle">
+                  <input type="checkbox" checked />
+                  <div class="toggle-track"><div class="toggle-thumb"></div></div>
+                </label>
+              </div>
+              <div style="font-size:12px; color:var(--text-muted);">Sent every Monday at 9am with your recovery stats, revenue recovered, and upcoming retries.</div>
+            </div>
+          </div>
+        </div>
+        <div class="step-footer">
+          <button class="btn-back" onclick="goStep(2)">← Back</button>
+          <button class="btn btn-primary" onclick="goStep(4)">Continue →</button>
+        </div>
+      </div>
+
+      <!-- STEP 4: Go Live -->
+      <div class="step" id="step-4">
+        <div class="step-hero">
+          <div class="step-icon-wrap" style="background:rgba(0,230,118,0.15); box-shadow:0 0 24px var(--accent-dim)">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="step-num-label">Step 4 of 4</div>
+          <div class="step-title">You're ready to go live 🎉</div>
+          <p class="step-sub">Here's a summary of your setup. Reflow will start monitoring your payments the moment you activate.</p>
+        </div>
+        <div class="step-body">
+          <div class="preview-summary">
+            <div class="summary-row">
+              <span class="summary-key">Payment processor</span>
+              <span class="summary-val ok">✓ Connected</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-key">Recovery strategy</span>
+              <span class="summary-val">Smart (recommended)</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-key">Email sequences</span>
+              <span class="summary-val ok">✓ Enabled</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-key">Smart retry</span>
+              <span class="summary-val ok">✓ Enabled</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-key">Weekly report</span>
+              <span class="summary-val ok">✓ Monday 9am</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-key">Reflow commission</span>
+              <span class="summary-val">15% of recovered only</span>
+            </div>
+            <div class="ready-banner">
+              <p>⚡ First retry will fire within 4 hours of the next failed payment</p>
+              <small>// you'll get an email the moment we recover your first payment</small>
+            </div>
+          </div>
+        </div>
+        <div class="step-footer">
+          <button class="btn-back" onclick="goStep(3)">← Back</button>
+          <a href="dashboard.html" class="btn btn-primary">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            Activate Reflow
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- SIDE HELPER -->
+  <aside class="onboard-helper" id="side-helper">
+    <div class="helper-title">// Why this matters</div>
+    <div class="helper-tips" id="helper-tips">
+      <div class="helper-tip">
+        <div class="tip-dot"></div>
+        <span>OAuth is the safest connection method — no key exposure, revocable at any time from your provider dashboard.</span>
+      </div>
+      <div class="helper-tip">
+        <div class="tip-dot"></div>
+        <span>We only ask for the minimum permissions needed to read payment events and trigger retries.</span>
+      </div>
+      <div class="helper-tip">
+        <div class="tip-dot"></div>
+        <span>Most customers see their first recovery within 48 hours of connecting.</span>
+      </div>
+    </div>
+  </aside>
+
+  <script src="app.js"></script>
+  <script>
+    let currentStep = 1;
+
+    const helperContent = {
+      1: [
+        'OAuth is the safest connection method — revocable from your payment provider anytime.',
+        'We only request minimum permissions: read payment events + trigger retries.',
+        'No card numbers are ever stored. We are SOC 2 compliant and AES-256 encrypted.'
+      ],
+      2: [
+        'Smart mode uses 14 failure classifications to pick the best retry time per failure type.',
+        '"Insufficient funds" is retried at payday windows. "Expired card" triggers an update nudge immediately.',
+        'You can override or pause any rule from the dashboard at any time.'
+      ],
+      3: [
+        'Slack alerts fire the moment a payment fails — so you\'re never the last to know.',
+        'The weekly Monday report is your finance team\'s favourite — recovery rate, revenue saved, upcoming retries.',
+        'You can add multiple email recipients from Settings after setup.'
+      ],
+      4: [
+        'Reflow monitors all new payment_intent.payment_failed webhook events automatically.',
+        'No failed payment will go unnoticed. Every one gets classified and queued for recovery.',
+        'You pay 15% only on successful recoveries. If we recover $0, you owe $0.'
+      ]
+    };
+
+    function goStep(n) {
+      // Update card
+      document.getElementById(`step-${currentStep}`).classList.remove('active');
+      document.getElementById(`step-${n}`).classList.add('active');
+
+      // Update progress
+      for (let i = 1; i <= 4; i++) {
+        const ps = document.getElementById(`ps-${i}`);
+        ps.classList.remove('active', 'done');
+        if (i < n) ps.classList.add('done');
+        else if (i === n) ps.classList.add('active');
+      }
+      for (let i = 1; i <= 3; i++) {
+        const pc = document.getElementById(`pc-${i}`);
+        pc.classList.toggle('done', i < n);
+      }
+
+      // Update helper
+      const tips = helperContent[n];
+      document.getElementById('helper-tips').innerHTML = tips.map(t => `
+        <div class="helper-tip"><div class="tip-dot"></div><span>${t}</span></div>
+      `).join('');
+
+      currentStep = n;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function selectStrategy(el) {
+      document.querySelectorAll('.strategy-option').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+
+    function simulateConnect(btn) {
+      btn.textContent = 'Connecting...';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Payment processor connected — Stackflow Inc.
+        `;
+        btn.classList.add('connected');
+        btn.disabled = false;
+      }, 1400);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reflow — How It Works</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body { background: var(--bg); }
+
+    /* ─── HERO ─── */
+    .hiw-hero {
+      padding: calc(var(--nav-h) + 80px) 40px 60px;
+      max-width: 760px; margin: 0 auto;
+      text-align: center;
+    }
+
+    .hiw-hero h1 {
+      font-family: var(--font-head);
+      font-size: clamp(36px, 5vw, 58px);
+      font-weight: 800; letter-spacing: -2.5px; line-height: 1.06;
+      margin-bottom: 20px;
+    }
+
+    .hiw-hero p {
+      font-size: 18px; color: var(--text-muted); line-height: 1.65;
+      max-width: 580px; margin: 0 auto 36px;
+    }
+
+    /* ─── FLOW DIAGRAM ─── */
+    .flow-section { padding: 0 40px 80px; max-width: 960px; margin: 0 auto; }
+
+    .flow-diagram {
+      position: relative;
+      display: flex; flex-direction: column; gap: 0;
+    }
+
+    .flow-row {
+      display: grid; grid-template-columns: 1fr 60px 1fr;
+      gap: 0; align-items: start;
+      margin-bottom: -1px;
+    }
+
+    /* Left / Right cards */
+    .flow-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .flow-card:hover { border-color: var(--accent-border); box-shadow: 0 0 24px var(--accent-dim); }
+    .flow-card.empty { background: transparent; border: none; box-shadow: none; }
+
+    .flow-card-num {
+      font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+      color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .flow-card h3 {
+      font-family: var(--font-head); font-size: 20px; font-weight: 700;
+      letter-spacing: -0.5px; margin-bottom: 10px;
+    }
+
+    .flow-card p {
+      font-size: 14px; color: var(--text-muted); line-height: 1.65;
+    }
+
+    .flow-card-tags { margin-top: 14px; display: flex; gap: 6px; flex-wrap: wrap; }
+
+    /* Middle connector column */
+    .flow-connector {
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      padding-top: 32px;
+    }
+
+    .connector-node {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: var(--accent-dim); border: 2px solid var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent); font-family: var(--font-mono); font-size: 13px;
+      font-weight: 700; flex-shrink: 0;
+      box-shadow: 0 0 20px var(--accent-dim);
+    }
+
+    .connector-line {
+      width: 2px; flex: 1; min-height: 40px;
+      background: linear-gradient(to bottom, var(--accent), var(--border));
+      margin: 4px 0;
+    }
+
+    .connector-line-top {
+      width: 2px; height: 32px;
+      background: linear-gradient(to bottom, var(--border), var(--accent));
+      margin-bottom: 4px;
+    }
+
+    /* ─── FAILURE TYPES GRID ─── */
+    .failures-section { padding: 0 40px 80px; max-width: 960px; margin: 0 auto; }
+
+    .failures-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 12px; margin-top: 40px;
+    }
+
+    .failure-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px;
+      transition: all 0.2s; cursor: default;
+    }
+    .failure-card:hover { border-color: var(--accent-border); transform: translateY(-2px); }
+
+    .failure-code {
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--text-dim); letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+
+    .failure-name { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+
+    .failure-strategy {
+      font-size: 12px; color: var(--text-muted); line-height: 1.4;
+      margin-bottom: 12px;
+    }
+
+    .failure-rate {
+      font-family: var(--font-mono); font-size: 13px;
+      font-weight: 600; color: var(--accent);
+    }
+
+    .failure-bar-track {
+      height: 3px; background: var(--surface-2); border-radius: 2px;
+      margin-top: 8px; overflow: hidden;
+    }
+    .failure-bar-fill {
+      height: 100%; background: var(--accent); border-radius: 2px;
+    }
+
+    /* ─── TIMING EXPLAINER ─── */
+    .timing-section { padding: 0 40px 80px; max-width: 960px; margin: 0 auto; }
+
+    .timing-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); overflow: hidden;
+    }
+
+    .timing-header {
+      padding: 28px 32px; border-bottom: 1px solid var(--border);
+      display: grid; grid-template-columns: 1fr 1fr; gap: 32px;
+    }
+
+    .timing-col h3 { font-family: var(--font-head); font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .timing-col p { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+    .timing-vs {
+      display: flex; align-items: center; gap: 8px; margin-top: 12px;
+      font-family: var(--font-mono); font-size: 11px;
+    }
+
+    .timing-timeline {
+      padding: 28px 32px;
+    }
+
+    .timeline-label {
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .timeline-track {
+      position: relative; height: 60px; margin-bottom: 20px;
+    }
+
+    .timeline-axis {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 1px; background: var(--border);
+    }
+
+    .timeline-tick {
+      position: absolute; bottom: -1px;
+      width: 1px; background: var(--border);
+      height: 8px;
+    }
+    .timeline-tick-label {
+      position: absolute; bottom: -20px;
+      transform: translateX(-50%);
+      font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .retry-dot {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 12px; height: 12px; border-radius: 50%;
+      border: 2px solid; cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .retry-dot:hover { transform: translateY(-50%) scale(1.4); }
+
+    .retry-dot-standard { background: var(--red-dim); border-color: var(--red); }
+    .retry-dot-reflow { background: var(--accent-dim); border-color: var(--accent); }
+
+    .timeline-legend {
+      display: flex; gap: 20px; margin-top: 28px;
+    }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    /* ─── CHANNELS ─── */
+    .channels-section { padding: 0 40px 80px; max-width: 960px; margin: 0 auto; }
+
+    .channels-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 16px; margin-top: 40px;
+    }
+
+    .channel-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 28px;
+      transition: all 0.2s;
+    }
+    .channel-card:hover { border-color: var(--accent-border); }
+
+    .channel-icon {
+      width: 52px; height: 52px; border-radius: 14px;
+      background: var(--accent-dim); border: 1px solid var(--accent-border);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent); margin-bottom: 20px;
+    }
+
+    .channel-card h3 {
+      font-family: var(--font-head); font-size: 18px; font-weight: 700;
+      letter-spacing: -0.3px; margin-bottom: 10px;
+    }
+
+    .channel-card p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 16px; }
+
+    /* Simulated message preview */
+    .msg-preview {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 14px 16px;
+      font-size: 12px; line-height: 1.6; color: var(--text-muted);
+    }
+
+    .msg-preview-header {
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--text-dim); margin-bottom: 8px;
+    }
+
+    .msg-highlight { color: var(--accent); font-weight: 500; }
+
+    /* ─── FAQ ─── */
+    .faq-section { padding: 0 40px 100px; max-width: 720px; margin: 0 auto; }
+    .faq-item { background: var(--surface); border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); margin-bottom: 8px; }
+    .faq-q { width: 100%; text-align: left; background: none; border: none; cursor: pointer; padding: 18px 22px; display: flex; justify-content: space-between; align-items: center; font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--text); gap: 16px; }
+    .faq-arrow { width: 22px; height: 22px; flex-shrink: 0; background: var(--surface-2); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-muted); transition: transform 0.2s, color 0.2s; font-size: 14px; }
+    .faq-item.open .faq-arrow { transform: rotate(45deg); color: var(--accent); }
+    .faq-a { max-height: 0; overflow: hidden; transition: max-height 0.35s ease, padding 0.2s; padding: 0 22px; color: var(--text-muted); font-size: 14px; line-height: 1.7; }
+    .faq-item.open .faq-a { max-height: 200px; padding: 0 22px 18px; }
+
+    /* SECTION HEADERS */
+    .section-header { margin-bottom: 0; }
+    .section-header h2 {
+      font-family: var(--font-head); font-size: clamp(26px, 3vw, 38px);
+      font-weight: 700; letter-spacing: -1.5px; line-height: 1.15;
+      margin-bottom: 10px;
+    }
+    .section-header p { font-size: 16px; color: var(--text-muted); max-width: 520px; }
+
+    @media (max-width: 900px) {
+      .flow-row { grid-template-columns: 1fr; }
+      .flow-connector { display: none; }
+      .flow-card.empty { display: none; }
+      .failures-grid { grid-template-columns: 1fr 1fr; }
+      .channels-grid { grid-template-columns: 1fr; }
+      .timing-header { grid-template-columns: 1fr; }
+      .hiw-hero, .flow-section, .failures-section, .timing-section, .channels-section, .faq-section { padding-left: 20px; padding-right: 20px; }
+    }
+    @media (max-width: 600px) {
+      .failures-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="logo"><span class="logo-dot"></span>Reflow</a>
+      <ul class="nav-links">
+        <li><a href="#flow" style="color:var(--text)">How it works</a></li>
+        <li><a href="index.html#features">Features</a></li>
+        <li><a href="pricing.html">Pricing</a></li>
+        <li><a href="dashboard.html">Demo</a></li>
+        <li><a href="onboarding.html" class="nav-cta">Get Started</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <div class="hiw-hero fade-up">
+    <div class="section-label" style="display:inline-block;">HOW IT WORKS</div>
+    <h1>From failed payment to recovered revenue — fully automatic.</h1>
+    <p>Reflow classifies every decline, picks the right strategy, and retries at exactly the right moment. Here's the entire system, explained simply.</p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+      <a href="onboarding.html" class="btn btn-primary">Start Recovering →</a>
+      <a href="dashboard.html" class="btn btn-secondary">See the Dashboard</a>
+    </div>
+  </div>
+
+  <!-- FLOW DIAGRAM -->
+  <section class="flow-section" id="flow">
+    <div style="text-align:center;margin-bottom:48px;">
+      <div class="section-label" style="display:inline-block;">THE FLOW</div>
+      <h2 style="font-family:var(--font-head);font-size:clamp(26px,3vw,38px);font-weight:700;letter-spacing:-1.5px;">What happens the moment a payment fails</h2>
+    </div>
+
+    <div class="flow-diagram">
+
+      <div class="flow-row">
+        <div class="flow-card">
+          <div class="flow-card-num">Step 01</div>
+          <h3>💳 Payment Fails</h3>
+          <p>A customer's charge is declined by their bank or card issuer. Your payment processor fires a webhook event. Reflow receives it within milliseconds and begins the recovery process.</p>
+          <div class="flow-card-tags">
+            <span class="tag tag-red">card declined</span>
+            <span class="tag tag-muted">webhook received</span>
+          </div>
+        </div>
+        <div class="flow-connector">
+          <div class="connector-node">1</div>
+          <div class="connector-line"></div>
+        </div>
+        <div class="flow-card empty"></div>
+      </div>
+
+      <div class="flow-row">
+        <div class="flow-card empty"></div>
+        <div class="flow-connector">
+          <div class="connector-line-top"></div>
+          <div class="connector-node">2</div>
+          <div class="connector-line"></div>
+        </div>
+        <div class="flow-card">
+          <div class="flow-card-num">Step 02</div>
+          <h3>🔍 Classify the Failure</h3>
+          <p>Reflow decodes the decline code, customer payment history, card type, and billing pattern. It picks from 14 failure categories — each gets a distinct recovery playbook.</p>
+          <div class="flow-card-tags">
+            <span class="tag tag-green">14 failure types</span>
+            <span class="tag tag-muted">customer history</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-row">
+        <div class="flow-card">
+          <div class="flow-card-num">Step 03</div>
+          <h3>⏰ Pick the Right Moment to Retry</h3>
+          <p>For insufficient funds, we check historical payday patterns and retry on Wednesday at 9am — when the customer's salary likely hit. For expired cards, we nudge immediately and retry on update. Timing is everything.</p>
+          <div class="flow-card-tags">
+            <span class="tag tag-green">behaviour-based timing</span>
+            <span class="tag tag-red">not fixed-schedule</span>
+          </div>
+        </div>
+        <div class="flow-connector">
+          <div class="connector-line-top"></div>
+          <div class="connector-node">3</div>
+          <div class="connector-line"></div>
+        </div>
+        <div class="flow-card empty"></div>
+      </div>
+
+      <div class="flow-row">
+        <div class="flow-card empty"></div>
+        <div class="flow-connector">
+          <div class="connector-line-top"></div>
+          <div class="connector-node">4</div>
+          <div class="connector-line"></div>
+        </div>
+        <div class="flow-card">
+          <div class="flow-card-num">Step 04</div>
+          <h3>📨 Nudge Through the Right Channel</h3>
+          <p>If a retry alone won't work (e.g., expired card), Reflow sends a recovery nudge through email, SMS, or in-app — depending on what that customer responds to. Not spam. Targeted, timed messaging.</p>
+          <div class="flow-card-tags">
+            <span class="tag tag-green">email + SMS + in-app</span>
+            <span class="tag tag-muted">personalised</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-row">
+        <div class="flow-card">
+          <div class="flow-card-num">Step 05</div>
+          <h3>✅ Revenue Recovered. You Pay Nothing Until Then.</h3>
+          <p>The retry succeeds. Your payment processor confirms the charge. Your dashboard updates in real time. Reflow invoices you 15% of the recovered amount at end of month. If nothing is recovered, you owe nothing.</p>
+          <div class="flow-card-tags">
+            <span class="tag tag-green">payment confirmed</span>
+            <span class="tag tag-green">15% commission only</span>
+          </div>
+        </div>
+        <div class="flow-connector">
+          <div class="connector-line-top"></div>
+          <div class="connector-node">✓</div>
+        </div>
+        <div class="flow-card empty"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- FAILURE TYPE BREAKDOWN -->
+  <section class="failures-section">
+    <div class="section-header">
+      <div class="section-label">FAILURE TYPES</div>
+      <h2>14 failure types. 14 different strategies.</h2>
+      <p>Most processors' built-in retry uses the same fixed schedule regardless of why the payment failed. Reflow knows the difference — and acts accordingly.</p>
+    </div>
+
+    <div class="failures-grid" style="margin-top:32px;">
+      <div class="failure-card">
+        <div class="failure-code">decline code: insufficient_funds</div>
+        <div class="failure-name">Insufficient Funds</div>
+        <div class="failure-strategy">Retry on next likely payday window (Wed/Thu/Fri 9am) based on customer location and history.</div>
+        <div class="failure-rate">82% recovery rate</div>
+        <div class="failure-bar-track"><div class="failure-bar-fill" style="width:82%"></div></div>
+      </div>
+      <div class="failure-card">
+        <div class="failure-code">decline code: expired_card</div>
+        <div class="failure-name">Expired Card</div>
+        <div class="failure-strategy">Send update-card email immediately. Retry within 10 minutes of customer clicking the update link.</div>
+        <div class="failure-rate">91% recovery rate</div>
+        <div class="failure-bar-track"><div class="failure-bar-fill" style="width:91%"></div></div>
+      </div>
+      <div class="failure-card">
+        <div class="failure-code">decline code: do_not_honor</div>
+        <div class="failure-name">Do Not Honor</div>
+        <div class="failure-strategy">Retry once at 4h. If fails again, escalate to human review — automated recovery is rarely effective here.</div>
+        <div class="failure-rate">31% recovery rate</div>
+        <div class="failure-bar-track"><div class="failure-bar-fill" style="width:31%; background:var(--yellow)"></div></div>
+      </div>
+      <div class="failure-card">
+        <div class="failure-code">decline code: card_declined</div>
+        <div class="failure-name">Generic Decline</div>
+        <div class="failure-strategy">Try a different time-of-day window. Send soft email nudge. If 3 retries fail, escalate.</div>
+        <div class="failure-rate">64% recovery rate</div>
+        <div class="failure-bar-track"><div class="failure-bar-fill" style="width:64%"></div></div>
+      </div>
+      <div class="failure-card">
+        <div class="failure-code">decline code: card_not_supported</div>
+        <div class="failure-name">Card Not Supported</div>
+        <div class="failure-strategy">Card type incompatible. Prompt customer to add a new payment method — no retry will work.</div>
+        <div class="failure-rate">78% recovery rate</div>
+        <div class="failure-bar-track"><div class="failure-bar-fill" style="width:78%"></div></div>
+      </div>
+      <div class="failure-card">
+        <div class="failure-code">decline code: lost_card</div>
+        <div class="failure-name">Lost / Stolen Card</div>
+        <div class="failure-strategy">Immediate email alert. Card is permanently invalid. Customer must add a new card to continue.</div>
+        <div class="failure-rate">88% recovery rate</div>
+        <div class="failure-bar-track"><div class="failure-bar-fill" style="width:88%"></div></div>
+      </div>
+      <div class="failure-card">
+        <div class="failure-code">decline code: auth_required</div>
+        <div class="failure-name">3DS / Auth Required</div>
+        <div class="failure-strategy">Send payment authentication link. Retry immediately after customer completes 3D Secure flow.</div>
+        <div class="failure-rate">87% recovery rate</div>
+        <div class="failure-bar-track"><div class="failure-bar-fill" style="width:87%"></div></div>
+      </div>
+      <div class="failure-card">
+        <div class="failure-code">decline code: issuer_unavailable</div>
+        <div class="failure-name">Issuer Not Available</div>
+        <div class="failure-strategy">Temporary bank outage. Retry after 2h, then again at 6h. Usually self-resolves without customer action.</div>
+        <div class="failure-rate">76% recovery rate</div>
+        <div class="failure-bar-track"><div class="failure-bar-fill" style="width:76%"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TIMING EXPLAINER -->
+  <section class="timing-section">
+    <div class="section-header">
+      <div class="section-label">RETRY TIMING</div>
+      <h2>Why timing is the biggest variable in recovery rate</h2>
+    </div>
+
+    <div class="timing-card" style="margin-top:32px;">
+      <div class="timing-header">
+        <div class="timing-col">
+          <h3>❌ Standard processor retry</h3>
+          <p>Retries on Day 3, Day 5, Day 7 — fixed schedule, regardless of why the payment failed or when the customer is most likely to have funds.</p>
+          <div class="timing-vs">
+            <span class="tag tag-red">fixed schedule</span>
+            <span class="tag tag-muted">35–45% recovery rate</span>
+          </div>
+        </div>
+        <div class="timing-col">
+          <h3>✅ Reflow's approach</h3>
+          <p>For insufficient funds, we learn the customer's likely payday (Wed–Fri, 8–10am). We retry then. Not on a calendar — on behaviour.</p>
+          <div class="timing-vs">
+            <span class="tag tag-green">behaviour-based</span>
+            <span class="tag tag-green">68–78% recovery rate</span>
+          </div>
+        </div>
+      </div>
+      <div class="timing-timeline">
+        <div class="timeline-label">// Retry attempt visualisation — insufficient funds failure (Day 0)</div>
+
+        <div style="position:relative;">
+          <!-- Retry label -->
+          <div style="font-size:12px; color:var(--red); font-family:var(--font-mono); margin-bottom:8px;">Standard retries (fixed)</div>
+          <div class="timeline-track">
+            <div class="timeline-axis"></div>
+            <!-- Ticks -->
+            <div class="timeline-tick" style="left:0%"><span class="timeline-tick-label">Day 0</span></div>
+            <div class="timeline-tick" style="left:25%"><span class="timeline-tick-label">Day 3</span></div>
+            <div class="timeline-tick" style="left:41.6%"><span class="timeline-tick-label">Day 5</span></div>
+            <div class="timeline-tick" style="left:58.3%"><span class="timeline-tick-label">Day 7</span></div>
+            <div class="timeline-tick" style="left:100%"><span class="timeline-tick-label">Day 12</span></div>
+            <!-- Dots -->
+            <div class="retry-dot retry-dot-standard" style="left:0%; transform:translateX(-50%) translateY(-50%);" title="Failed - Day 0"></div>
+            <div class="retry-dot retry-dot-standard" style="left:25%; transform:translateX(-50%) translateY(-50%);" title="Retry - Day 3"></div>
+            <div class="retry-dot retry-dot-standard" style="left:41.6%; transform:translateX(-50%) translateY(-50%);" title="Retry - Day 5"></div>
+            <div class="retry-dot retry-dot-standard" style="left:58.3%; transform:translateX(-50%) translateY(-50%);" title="Retry - Day 7"></div>
+          </div>
+        </div>
+
+        <div style="position:relative; margin-top:32px;">
+          <div style="font-size:12px; color:var(--accent); font-family:var(--font-mono); margin-bottom:8px;">Reflow retries (same customer)</div>
+          <div class="timeline-track">
+            <div class="timeline-axis"></div>
+            <div class="timeline-tick" style="left:0%"><span class="timeline-tick-label">Day 0</span></div>
+            <div class="timeline-tick" style="left:16.6%"><span class="timeline-tick-label">Day 2</span></div>
+            <div class="timeline-tick" style="left:33.3%"><span class="timeline-tick-label">Day 4 (payday)</span></div>
+            <div class="timeline-tick" style="left:100%"><span class="timeline-tick-label">Day 12</span></div>
+            <!-- Dots: fail, 1 targeted retry at payday = success -->
+            <div class="retry-dot retry-dot-standard" style="left:0%; transform:translateX(-50%) translateY(-50%);" title="Failed - Day 0"></div>
+            <div class="retry-dot retry-dot-reflow" style="left:16.6%; transform:translateX(-50%) translateY(-50%);" title="Retry #1 - Day 2 (early check)"></div>
+            <div class="retry-dot retry-dot-reflow" style="left:33.3%; transform:translateX(-50%) translateY(-50%); box-shadow:0 0 12px var(--accent);" title="✓ Recovered - Day 4 payday"></div>
+          </div>
+        </div>
+
+        <div class="timeline-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Failed attempt</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div>Retry (standard — fixed)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Retry (Reflow — behaviour-based)</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHANNELS -->
+  <section class="channels-section">
+    <div class="section-header">
+      <div class="section-label">RECOVERY CHANNELS</div>
+      <h2>Not just retries. The right message, at the right time, via the right channel.</h2>
+    </div>
+
+    <div class="channels-grid" style="margin-top:32px;">
+      <div class="channel-card">
+        <div class="channel-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        </div>
+        <h3>Email Recovery</h3>
+        <p>Personalised, human-sounding emails sent at the optimal time of day. Not templated spam — written for your brand and timed to the customer's behaviour.</p>
+        <div class="msg-preview">
+          <div class="msg-preview-header">// sample email (expired card)</div>
+          <div>Hey <span class="msg-highlight">Rohan</span> — your <span class="msg-highlight">Pro plan</span> payment on <span class="msg-highlight">Dec 28</span> didn't go through. Looks like your card may have expired. Takes 30 seconds to update: <span class="msg-highlight">[Update payment →]</span></div>
+        </div>
+      </div>
+
+      <div class="channel-card">
+        <div class="channel-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        </div>
+        <h3>SMS Nudges</h3>
+        <p>For high-value failed payments, a short SMS nudge dramatically increases response rate. Open rate: 98%. Sent only when the amount justifies it and the customer has opted in.</p>
+        <div class="msg-preview">
+          <div class="msg-preview-header">// sample SMS</div>
+          <div>Reflow (via Stackflow): Hi <span class="msg-highlight">Sofia</span>, your $149 payment failed. Update your card in 30s: <span class="msg-highlight">reflow.io/update/4f2x</span> — Reply STOP to opt out.</div>
+        </div>
+      </div>
+
+      <div class="channel-card">
+        <div class="channel-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <h3>In-App Nudges</h3>
+        <p>A non-disruptive banner inside your product. Customers who are actively using your product when they see it convert at the highest rate of any channel.</p>
+        <div class="msg-preview">
+          <div class="msg-preview-header">// in-app banner (Scale plan)</div>
+          <div style="background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:4px;padding:8px 10px;margin-top:4px;">
+            ⚠ Your payment didn't go through. <span class="msg-highlight">Update your card →</span> to keep your account active.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq-section">
+    <div style="text-align:center; margin-bottom:32px;">
+      <div class="section-label" style="display:inline-block;">COMMON QUESTIONS</div>
+      <h2 style="font-family:var(--font-head);font-size:clamp(24px,2.5vw,36px);font-weight:700;letter-spacing:-1.5px;">Still have questions?</h2>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">Does Reflow work alongside my processor's built-in retries?<span class="faq-arrow">+</span></button>
+      <div class="faq-a">Yes. You can run both. Reflow listens to the same webhook events and applies its own retry logic independently. Many customers keep their processor's default retries as a fallback and let Reflow handle the primary recovery attempts — since Reflow's timing is more precise, it usually gets there first.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">What if a customer doesn't want to be contacted?<span class="faq-arrow">+</span></button>
+      <div class="faq-a">Reflow respects unsubscribes and opt-outs. Customers can opt out of SMS at any time by replying STOP. Email includes a standard unsubscribe link. Silent recovery (retry-only, no nudge) is also configurable per customer or plan from your dashboard.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">How do you know when a customer's payday is?<span class="faq-arrow">+</span></button>
+      <div class="faq-a">We don't know for certain — but we infer from patterns. We look at when their previous successful payments landed, their billing country (salary cycles differ by region), and whether funds were available on similar days in the past. Over 2–3 weeks, the model becomes significantly more accurate for each customer.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">What happens if all retries fail?<span class="faq-arrow">+</span></button>
+      <div class="faq-a">After the maximum retry window (configurable, default 4 attempts over 10 days), Reflow escalates the case to your dashboard as "Manual Review Required." You can then contact the customer directly, cancel the subscription, or apply a custom action. We never silently give up — you always know the status.</div>
+    </div>
+  </section>
+
+  <!-- FOOTER CTA -->
+  <div style="text-align:center; padding:60px 40px 80px; border-top:1px solid var(--border); position:relative; z-index:1;">
+    <div class="section-label" style="display:inline-block;">READY?</div>
+    <h2 style="font-family:var(--font-head);font-size:clamp(28px,3.5vw,44px);font-weight:800;letter-spacing:-2px;margin-bottom:16px;">
+      Stop losing revenue you don't know about.
+    </h2>
+    <p style="color:var(--text-muted);font-size:16px;margin-bottom:32px;">Connect in 10 minutes. Free 60-day pilot. No credit card required.</p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+      <a href="onboarding.html" class="btn btn-primary">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Get Started Free
+      </a>
+      <a href="dashboard.html" class="btn btn-secondary">View Demo Dashboard →</a>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-inner">
+      <a href="index.html" class="logo" style="font-size:18px;"><span class="logo-dot"></span>Reflow</a>
+      <nav class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="how-it-works.html">How it works</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="dashboard.html">Demo</a>
+        <a href="alerts.html">Alerts</a>
+        <a href="onboarding.html">Get Started</a>
+      </nav>
+      <p class="footer-copy">© 2025 Reflow Inc.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+  <script>
+    document.querySelectorAll('.faq-q').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const item = btn.closest('.faq-item');
+        const isOpen = item.classList.contains('open');
+        document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+        if (!isOpen) item.classList.add('open');
+      });
+    });
+  </script>
+</body>
+</html>
