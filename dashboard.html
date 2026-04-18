@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reflow — Recovery Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body { background: var(--bg); }
+
+    .dash-layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      min-height: 100vh;
+    }
+
+    /* ─── SIDEBAR ─── */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+      position: fixed; top: 0; left: 0; bottom: 0; width: 220px;
+      display: flex; flex-direction: column;
+      z-index: 10;
+    }
+
+    .sidebar-logo {
+      padding: 0 20px 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 12px;
+    }
+
+    .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 0 10px; }
+
+    .sidebar-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-radius: var(--radius-sm);
+      font-size: 14px; color: var(--text-muted);
+      cursor: pointer; transition: all 0.15s;
+      text-decoration: none;
+    }
+    .sidebar-item:hover { background: var(--surface-2); color: var(--text); }
+    .sidebar-item.active { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
+    .sidebar-item svg { flex-shrink: 0; }
+
+    .sidebar-section-label {
+      padding: 16px 24px 6px;
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase;
+    }
+
+    .sidebar-bottom {
+      padding: 16px 10px 0;
+      border-top: 1px solid var(--border);
+      margin-top: auto;
+    }
+
+    .sidebar-company {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-radius: var(--radius-sm);
+    }
+
+    .company-avatar {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--accent-dim); border: 1px solid var(--accent-border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-head); font-size: 12px; font-weight: 700; color: var(--accent);
+    }
+
+    .company-name { font-size: 13px; font-weight: 500; line-height: 1; margin-bottom: 2px; }
+    .company-mrr { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+
+    /* ─── MAIN ─── */
+    .dash-main {
+      margin-left: 220px;
+      padding: 32px 36px;
+      min-height: 100vh;
+    }
+
+    .dash-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 32px;
+    }
+
+    .dash-title {
+      font-family: var(--font-head);
+      font-size: 22px; font-weight: 700; letter-spacing: -0.5px;
+    }
+
+    .dash-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+    .dash-header-right { display: flex; align-items: center; gap: 12px; }
+
+    .date-range {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); font-size: 13px; color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    /* ─── METRIC CARDS ─── */
+    .metric-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 16px; margin-bottom: 28px;
+    }
+
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      transition: border-color 0.2s;
+    }
+    .metric-card:hover { border-color: var(--accent-border); }
+
+    .metric-label {
+      font-size: 12px; color: var(--text-muted);
+      margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+    }
+
+    .metric-val {
+      font-family: var(--font-mono);
+      font-size: 28px; font-weight: 600;
+      line-height: 1; margin-bottom: 8px;
+    }
+
+    .metric-delta {
+      font-family: var(--font-mono); font-size: 11px;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .delta-up { color: var(--accent); }
+    .delta-down { color: var(--red); }
+
+    /* ─── CHART ─── */
+    .chart-row { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 28px; }
+
+    .chart-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px;
+    }
+
+    .chart-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .chart-title { font-size: 14px; font-weight: 600; }
+    .chart-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    .chart-tabs { display: flex; gap: 4px; }
+    .chart-tab {
+      padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;
+      color: var(--text-muted); transition: all 0.15s; border: none; background: none;
+      font-family: var(--font-body);
+    }
+    .chart-tab.active { background: var(--accent-dim); color: var(--accent); }
+
+    .chart-area { height: 180px; position: relative; }
+
+    canvas#recoveryChart { width: 100% !important; }
+
+    /* Donut placeholder */
+    .donut-area { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 180px; gap: 16px; }
+
+    .donut-svg { flex-shrink: 0; }
+
+    .donut-legend { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+    .donut-legend-item {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12px;
+    }
+    .donut-legend-left { display: flex; align-items: center; gap: 8px; color: var(--text-muted); }
+    .donut-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .donut-pct { font-family: var(--font-mono); font-weight: 500; }
+
+    /* ─── FAILURES TABLE ─── */
+    .table-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden; margin-bottom: 28px;
+    }
+
+    .table-header {
+      padding: 18px 24px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .table-title { font-size: 14px; font-weight: 600; }
+
+    .table-search {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 6px 12px;
+      font-size: 13px; color: var(--text-muted);
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      text-align: left; padding: 10px 24px;
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase;
+      border-bottom: 1px solid var(--border); background: var(--surface-2);
+    }
+    tbody tr { border-bottom: 1px solid var(--border-light); transition: background 0.15s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--surface-2); }
+    tbody td { padding: 13px 24px; font-size: 13px; }
+
+    .customer-cell { display: flex; flex-direction: column; gap: 2px; }
+    .customer-name { font-weight: 500; font-size: 13px; }
+    .customer-plan { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 100px;
+      font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    }
+    .status-badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; }
+    .status-recovered { background: var(--accent-dim); color: var(--accent); }
+    .status-recovered::before { background: var(--accent); }
+    .status-retrying { background: var(--yellow-dim); color: var(--yellow); }
+    .status-retrying::before { background: var(--yellow); animation: pulse-dot 1.2s ease infinite; }
+    .status-failed { background: var(--red-dim); color: var(--red); }
+    .status-failed::before { background: var(--red); }
+
+    .amount-cell { font-family: var(--font-mono); font-weight: 500; }
+    .time-cell { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 1000px) {
+      .dash-layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .dash-main { margin-left: 0; padding: 80px 20px 20px; }
+      .metric-grid { grid-template-columns: 1fr 1fr; }
+      .chart-row { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .metric-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="dash-layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <a href="index.html" class="logo" style="font-size:18px;">
+          <span class="logo-dot"></span>Reflow
+        </a>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="#" class="sidebar-item active">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Overview
+        </a>
+        <a href="#" class="sidebar-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.57-5.95"/></svg>
+          Retries
+        </a>
+        <a href="#" class="sidebar-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Nudges
+        </a>
+
+        <div class="sidebar-section-label">Analytics</div>
+
+        <a href="#" class="sidebar-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Revenue
+        </a>
+        <a href="#" class="sidebar-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Customers
+        </a>
+
+        <div class="sidebar-section-label">Settings</div>
+
+        <a href="index.html" class="sidebar-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+          Integrations
+        </a>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="sidebar-company">
+          <div class="company-avatar">SF</div>
+          <div>
+            <div class="company-name">Stackflow Inc.</div>
+            <div class="company-mrr">$28,400 MRR</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="dash-main">
+      <div class="dash-header">
+        <div>
+          <div class="dash-title">Recovery Overview</div>
+          <div class="dash-subtitle">Last updated 3 minutes ago · Stripe connected ✓</div>
+        </div>
+        <div class="dash-header-right">
+          <div class="date-range">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Last 30 days
+          </div>
+          <a href="index.html" class="btn btn-primary" style="padding:8px 18px; font-size:13px;">← Back to Site</a>
+        </div>
+      </div>
+
+      <!-- METRICS -->
+      <div class="metric-grid">
+        <div class="metric-card">
+          <div class="metric-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.57-5.95"/></svg>
+            Recovery Rate
+          </div>
+          <div class="metric-val accent" id="m-rate">0%</div>
+          <div class="metric-delta delta-up">↑ +12.4% vs last month</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Revenue Recovered
+          </div>
+          <div class="metric-val" id="m-rev">$0</div>
+          <div class="metric-delta delta-up">↑ $840 more than Nov</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            Failed Payments
+          </div>
+          <div class="metric-val red" id="m-fail">0</div>
+          <div class="metric-delta delta-down">↓ 3 more than last month</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Avg Recovery Time
+          </div>
+          <div class="metric-val" id="m-time">0h</div>
+          <div class="metric-delta delta-up">↑ 1.2h faster than avg</div>
+        </div>
+      </div>
+
+      <!-- CHART ROW -->
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Recovery Performance</div>
+              <div class="chart-sub">Revenue at risk vs recovered over time</div>
+            </div>
+            <div class="chart-tabs">
+              <button class="chart-tab active" onclick="switchTab(this,'7d')">7D</button>
+              <button class="chart-tab" onclick="switchTab(this,'30d')">30D</button>
+              <button class="chart-tab" onclick="switchTab(this,'90d')">90D</button>
+            </div>
+          </div>
+          <div class="chart-area">
+            <canvas id="recoveryChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Failure Breakdown</div>
+              <div class="chart-sub">By failure type this month</div>
+            </div>
+          </div>
+          <div class="donut-area">
+            <svg class="donut-svg" width="100" height="100" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="38" fill="none" stroke="var(--surface-2)" stroke-width="12"/>
+              <circle cx="50" cy="50" r="38" fill="none" stroke="var(--red)" stroke-width="12"
+                stroke-dasharray="90 149" stroke-dashoffset="0" transform="rotate(-90 50 50)"
+                style="transition: stroke-dasharray 1s ease"/>
+              <circle cx="50" cy="50" r="38" fill="none" stroke="var(--yellow)" stroke-width="12"
+                stroke-dasharray="68 171" stroke-dashoffset="-90" transform="rotate(-90 50 50)"/>
+              <circle cx="50" cy="50" r="38" fill="none" stroke="var(--accent)" stroke-width="12"
+                stroke-dasharray="52 187" stroke-dashoffset="-158" transform="rotate(-90 50 50)"/>
+              <text x="50" y="46" text-anchor="middle" fill="var(--text)" font-family="IBM Plex Mono" font-size="12" font-weight="600">38</text>
+              <text x="50" y="59" text-anchor="middle" fill="var(--text-muted)" font-family="IBM Plex Mono" font-size="8">total</text>
+            </svg>
+            <div class="donut-legend">
+              <div class="donut-legend-item">
+                <div class="donut-legend-left"><div class="donut-dot" style="background:var(--red)"></div>Insufficient funds</div>
+                <span class="donut-pct red">38%</span>
+              </div>
+              <div class="donut-legend-item">
+                <div class="donut-legend-left"><div class="donut-dot" style="background:var(--yellow)"></div>Expired card</div>
+                <span class="donut-pct" style="color:var(--yellow)">29%</span>
+              </div>
+              <div class="donut-legend-item">
+                <div class="donut-legend-left"><div class="donut-dot" style="background:var(--accent)"></div>Bank decline</div>
+                <span class="donut-pct accent">22%</span>
+              </div>
+              <div class="donut-legend-item">
+                <div class="donut-legend-left"><div class="donut-dot" style="background:var(--text-dim)"></div>Other</div>
+                <span class="donut-pct muted">11%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAYMENTS TABLE -->
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">Recent Failed Payments</div>
+          <div class="table-search">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Search payments...
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th>Amount</th>
+              <th>Failure Type</th>
+              <th>Status</th>
+              <th>Retries</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="payments-table">
+          </tbody>
+        </table>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script>
+    const payments = [
+      { name: 'Rohan K.', plan: 'Pro · $299/mo', amount: '$299', type: 'Insufficient funds', status: 'recovered', retries: 2, time: '2h ago' },
+      { name: 'Sofia C.', plan: 'Growth · $149/mo', amount: '$149', type: 'Expired card', status: 'retrying', retries: 1, time: '4h ago' },
+      { name: 'Arjun M.', plan: 'Pro · $299/mo', amount: '$299', type: 'Bank decline', status: 'recovered', retries: 3, time: '6h ago' },
+      { name: 'Priya S.', plan: 'Starter · $79/mo', amount: '$79', type: 'Insufficient funds', status: 'retrying', retries: 1, time: '8h ago' },
+      { name: 'James L.', plan: 'Pro · $299/mo', amount: '$299', type: 'Do not honor', status: 'failed', retries: 4, time: '12h ago' },
+      { name: 'Emma W.', plan: 'Growth · $149/mo', amount: '$149', type: 'Expired card', status: 'recovered', retries: 1, time: '14h ago' },
+      { name: 'Carlos R.', plan: 'Pro · $299/mo', amount: '$299', type: 'Insufficient funds', status: 'recovered', retries: 2, time: '18h ago' },
+      { name: 'Yuki T.', plan: 'Starter · $79/mo', amount: '$79', type: 'Network error', status: 'recovered', retries: 1, time: '1d ago' },
+    ];
+
+    function renderTable() {
+      const tbody = document.getElementById('payments-table');
+      tbody.innerHTML = payments.map(p => `
+        <tr>
+          <td><div class="customer-cell"><span class="customer-name">${p.name}</span><span class="customer-plan">${p.plan}</span></div></td>
+          <td class="amount-cell">${p.amount}</td>
+          <td><span class="tag tag-muted">${p.type}</span></td>
+          <td><span class="status-badge status-${p.status}">${p.status}</span></td>
+          <td class="mono" style="font-size:13px; color:var(--text-muted)">${p.retries}x</td>
+          <td class="time-cell">${p.time}</td>
+        </tr>
+      `).join('');
+    }
+
+    function initChart(labels, atRisk, recovered) {
+      const ctx = document.getElementById('recoveryChart').getContext('2d');
+      if (window._chart) window._chart.destroy();
+      window._chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'At Risk',
+              data: atRisk,
+              borderColor: '#FF4D5E',
+              backgroundColor: 'rgba(255,77,94,0.07)',
+              fill: true,
+              tension: 0.4,
+              pointRadius: 0,
+              borderWidth: 1.5,
+            },
+            {
+              label: 'Recovered',
+              data: recovered,
+              borderColor: '#00E676',
+              backgroundColor: 'rgba(0,230,118,0.09)',
+              fill: true,
+              tension: 0.4,
+              pointRadius: 0,
+              borderWidth: 2,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0D1826',
+              borderColor: 'rgba(255,255,255,0.07)',
+              borderWidth: 1,
+              titleColor: '#7A8B9A',
+              bodyColor: '#EBF0F7',
+              callbacks: {
+                label: ctx => ` $${ctx.raw.toLocaleString()}`
+              }
+            }
+          },
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7A8B9A', font: { family: 'IBM Plex Mono', size: 10 } } },
+            y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7A8B9A', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => '$'+v } }
+          }
+        }
+      });
+    }
+
+    const chartData = {
+      '7d': {
+        labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+        atRisk: [420,380,510,460,390,440,510],
+        recovered: [310,290,390,380,310,360,420]
+      },
+      '30d': {
+        labels: ['Jan 1','Jan 5','Jan 10','Jan 15','Jan 20','Jan 25','Jan 30'],
+        atRisk: [1200,980,1400,1100,1600,1300,1800],
+        recovered: [860,760,1100,880,1260,1040,1490]
+      },
+      '90d': {
+        labels: ['Oct','Nov','Dec','Jan'],
+        atRisk: [3200,3800,4100,4900],
+        recovered: [2200,2900,3300,3900]
+      }
+    };
+
+    function switchTab(el, key) {
+      document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      const d = chartData[key];
+      initChart(d.labels, d.atRisk, d.recovered);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      animateCounter(document.getElementById('m-rate'), 73, 1600, '', '%');
+      animateCounter(document.getElementById('m-rev'), 3840, 2000, '$', '');
+      animateCounter(document.getElementById('m-fail'), 38, 1200, '', '');
+      animateCounter(document.getElementById('m-time'), 4.2, 1400, '', 'h');
+      renderTable();
+      setTimeout(() => {
+        const d = chartData['7d'];
+        initChart(d.labels, d.atRisk, d.recovered);
+      }, 200);
+    });
+  </script>
+</body>
+</html>
